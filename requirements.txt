@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pydantic
+biopython
+torch
+esm  # Make sure this version is compatible with your esmfold package
+together
+transformers

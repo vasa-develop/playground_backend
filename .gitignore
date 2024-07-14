@@ -1,0 +1,7 @@
+.env
+__pycache__/
+.vscode/
+.DS_Store
+.idea/
+proteins.faa
+genes.gff
