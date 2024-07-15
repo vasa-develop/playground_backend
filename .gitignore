@@ -3,5 +3,8 @@ __pycache__/
 .vscode/
 .DS_Store
 .idea/
-proteins.faa
-genes.gff
+proteins*.faa
+protein*.pdb
+genes*.gff
+temp*.faa
+temp*.gff
