@@ -4,6 +4,7 @@ pydantic
 biopython
 torch
 together
+accelerate
 transformers
 torch-scatter 
 torch-sparse 
