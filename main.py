@@ -15,11 +15,21 @@ from typing import List
 from functools import wraps
 from cachetools import TTLCache
 import time
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()  # Load environment variables from .env file
 
 app = FastAPI()
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 class ModelInput(BaseModel):
     prompt: str = (
