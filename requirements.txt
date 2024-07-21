@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 pydantic
+cachetools
 biopython
 torch
 together
