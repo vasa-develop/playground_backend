@@ -12,9 +12,8 @@ pip install -r requirements.txt
 
 2. Install [prodigal](https://github.com/hyattpd/prodigal/wiki/Installation)
 
-3. Install esm
+3. Start the server
+
 ```bash
-git clone https://github.com/facebookresearch/esm.git
-cd esm
-pip install -e .
+uvicorn main:app --reload
 ```
