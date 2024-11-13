@@ -108,19 +108,17 @@ class BreakoutEnvironment(GameEnvironment):
         # Resize to 84x84 (standard for DQN/MuZero Atari)
         resized = cv2.resize(gray, (84, 84), interpolation=cv2.INTER_AREA)
 
-        # Normalize to [0, 1]
-        normalized = resized / 255.0
-
-        return normalized.astype(np.float32)
+        # Normalize to [0, 1] and convert to Python list
+        normalized = (resized / 255.0).astype(np.float32)
+        return normalized.tolist()  # Convert to Python list immediately after preprocessing
 
     def _get_stacked_state(self):
         """Stack last 4 frames for MuZero input."""
         if not self.frame_stack:
             return None
 
-        # Stack frames along a new axis (channel dimension) and convert to list
-        stacked = np.stack(self.frame_stack, axis=0)
-        return stacked.tolist()  # Convert numpy array to nested Python lists
+        # Since frames are already lists, we just need to return the frame stack
+        return self.frame_stack  # Already a list of lists from _preprocess_frame
 
     def get_observation_space(self):
         """Get the observation space for MuZero."""
