@@ -29,16 +29,16 @@ async def init_breakout():
         session_id = str(uuid.uuid4())
         env = BreakoutEnvironment()
         environments[session_id] = env
-        state = env.reset()
+        state, info = env.reset()  # Now returns tuple of (state, info)
 
         # Get AI suggestion if available
         suggested_action = env.get_ai_suggestion(state) if hasattr(env, 'get_ai_suggestion') else None
 
         return GameState(
-            state=state.tolist(),
+            state=state,  # State is already a list
             reward=0.0,
             done=False,
-            info={},
+            info=info,  # Use the info from reset
             session_id=session_id,
             suggested_action=suggested_action
         )
@@ -62,9 +62,9 @@ async def step_breakout(action_request: ActionRequest):
         suggested_action = env.get_ai_suggestion(state) if hasattr(env, 'get_ai_suggestion') else None
 
         return GameState(
-            state=state.tolist(),
-            reward=reward,
-            done=done,
+            state=state,  # State is already a list
+            reward=float(reward),
+            done=bool(done),
             info=info,
             session_id=action_request.session_id,
             suggested_action=suggested_action
@@ -92,16 +92,16 @@ async def reset_breakout(session_id: str):
         if env is None:
             raise HTTPException(status_code=400, detail="Invalid session ID")
 
-        state = env.reset()
+        state, info = env.reset()  # Now returns tuple of (state, info)
 
         # Get AI suggestion if available
         suggested_action = env.get_ai_suggestion(state) if hasattr(env, 'get_ai_suggestion') else None
 
         return GameState(
-            state=state.tolist(),
+            state=state,  # State is already a list
             reward=0.0,
             done=False,
-            info={},
+            info=info,  # Use the info from reset
             session_id=session_id,
             suggested_action=suggested_action
         )
