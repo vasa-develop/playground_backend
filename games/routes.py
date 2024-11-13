@@ -2,35 +2,45 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from .environments.breakout_env import BreakoutEnvironment
+import uuid
 
 router = APIRouter()
 
-# Global environment instance
-env = None
+# Dictionary to store environment instances
+environments = {}
 
 class GameState(BaseModel):
-    state: List[List[float]]
+    state: List[List[List[float]]]  # Shape: (4, 84, 84) for frame stack
     reward: float
     done: bool
     info: Dict[str, Any]
+    session_id: str
+    suggested_action: Optional[int] = None
 
 class ActionRequest(BaseModel):
     action: int
+    use_ai: bool = False
+    session_id: str
 
 @router.post("/breakout/init", response_model=GameState)
 async def init_breakout():
     """Initialize Breakout environment."""
-    global env
     try:
-        if env is not None:
-            env.close()
+        session_id = str(uuid.uuid4())
         env = BreakoutEnvironment()
+        environments[session_id] = env
         state = env.reset()
+
+        # Get AI suggestion if available
+        suggested_action = env.get_ai_suggestion(state) if hasattr(env, 'get_ai_suggestion') else None
+
         return GameState(
             state=state.tolist(),
             reward=0.0,
             done=False,
-            info={}
+            info={},
+            session_id=session_id,
+            suggested_action=suggested_action
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -38,17 +48,26 @@ async def init_breakout():
 @router.post("/breakout/step", response_model=GameState)
 async def step_breakout(action_request: ActionRequest):
     """Execute action in Breakout environment."""
-    global env
     try:
+        env = environments.get(action_request.session_id)
         if env is None:
-            raise HTTPException(status_code=400, detail="Environment not initialized")
+            raise HTTPException(status_code=400, detail="Invalid session ID")
 
-        state, reward, done, info = env.step(action_request.action)
+        # Use AI suggestion if requested
+        action = env.get_ai_suggestion(env.get_state()) if action_request.use_ai and hasattr(env, 'get_ai_suggestion') else action_request.action
+
+        state, reward, done, info = env.step(action)
+
+        # Get next AI suggestion
+        suggested_action = env.get_ai_suggestion(state) if hasattr(env, 'get_ai_suggestion') else None
+
         return GameState(
             state=state.tolist(),
             reward=reward,
             done=done,
-            info=info
+            info=info,
+            session_id=action_request.session_id,
+            suggested_action=suggested_action
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -56,27 +75,35 @@ async def step_breakout(action_request: ActionRequest):
 @router.get("/breakout/valid-actions")
 async def get_valid_actions():
     """Get list of valid actions for Breakout."""
-    global env
     try:
-        if env is None:
-            raise HTTPException(status_code=400, detail="Environment not initialized")
-        return {"valid_actions": env.get_valid_actions()}
+        # Create temporary env just to get valid actions
+        temp_env = BreakoutEnvironment()
+        valid_actions = temp_env.get_valid_actions()
+        temp_env.close()
+        return {"valid_actions": valid_actions}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/breakout/reset", response_model=GameState)
-async def reset_breakout():
+async def reset_breakout(session_id: str):
     """Reset Breakout environment."""
-    global env
     try:
+        env = environments.get(session_id)
         if env is None:
-            raise HTTPException(status_code=400, detail="Environment not initialized")
+            raise HTTPException(status_code=400, detail="Invalid session ID")
+
         state = env.reset()
+
+        # Get AI suggestion if available
+        suggested_action = env.get_ai_suggestion(state) if hasattr(env, 'get_ai_suggestion') else None
+
         return GameState(
             state=state.tolist(),
             reward=0.0,
             done=False,
-            info={}
+            info={},
+            session_id=session_id,
+            suggested_action=suggested_action
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -84,6 +111,6 @@ async def reset_breakout():
 @router.on_event("shutdown")
 async def shutdown_event():
     """Clean up resources on shutdown."""
-    global env
-    if env is not None:
+    for env in environments.values():
         env.close()
+    environments.clear()
