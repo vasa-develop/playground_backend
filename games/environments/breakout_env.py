@@ -133,8 +133,11 @@ class BreakoutEnvironment(GameEnvironment):
         if state is None:
             return 1  # FIRE to start the game
 
+        # Convert state back to numpy array for processing
+        state_array = np.array(state)
+
         # Extract the most recent frame
-        current_frame = state[-1]  # Shape: (84, 84)
+        current_frame = state_array[-1]  # Shape: (84, 84)
 
         # Find paddle position (look at the bottom rows)
         paddle_row = current_frame[-5:]  # Last 5 rows
@@ -149,10 +152,11 @@ class BreakoutEnvironment(GameEnvironment):
             ball_x = np.mean(ball_positions[1])
 
             # Track ball movement
-            if self.ball_previous_y is not None:
+            if hasattr(self, 'ball_previous_y'):
                 ball_moving_down = ball_y > self.ball_previous_y
             else:
                 ball_moving_down = True
+                self.ball_previous_y = None
 
             self.ball_previous_y = ball_y
 
