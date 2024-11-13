@@ -148,16 +148,18 @@ class BreakoutEnvironment(GameEnvironment):
         ball_positions = np.where(play_area > 0.5)
 
         if len(ball_positions[0]) > 0:
-            ball_y = np.mean(ball_positions[0])
-            ball_x = np.mean(ball_positions[1])
+            ball_y = float(np.mean(ball_positions[0]))  # Convert to float
+            ball_x = float(np.mean(ball_positions[1]))  # Convert to float
 
-            # Track ball movement
-            if hasattr(self, 'ball_previous_y'):
-                ball_moving_down = ball_y > self.ball_previous_y
-            else:
+            # Initialize ball tracking if needed
+            if not hasattr(self, 'ball_previous_y'):
+                self.ball_previous_y = ball_y
                 ball_moving_down = True
-                self.ball_previous_y = None
+            else:
+                # Only compare if we have a previous position
+                ball_moving_down = True if self.ball_previous_y is None else ball_y > self.ball_previous_y
 
+            # Update previous position
             self.ball_previous_y = ball_y
 
             # Only move if ball is moving down and getting close
@@ -168,5 +170,6 @@ class BreakoutEnvironment(GameEnvironment):
                     return 2  # RIGHT
                 return 0  # NOOP
 
-        # If we can't find the ball, make small movements
+        # If we can't find the ball or it's not moving down
+        self.ball_previous_y = None  # Reset tracking when ball is lost
         return np.random.choice([0, 2, 3])  # NOOP, RIGHT, LEFT
