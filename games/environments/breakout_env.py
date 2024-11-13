@@ -15,12 +15,14 @@ class BreakoutEnvironment(GameEnvironment):
         self.lives = 5  # Initial lives in Breakout
         self.frame_stack = []  # Store last 4 frames for MuZero
         self.frame_stack_size = 4
+        self.ball_previous_y = None  # Track ball movement
 
     def reset(self):
         """Reset the environment and return initial state."""
         self.state, info = self.env.reset()
         self.lives = info.get('lives', 5)
         self.frame_stack = []
+        self.ball_previous_y = None
 
         # Initialize frame stack with initial state
         processed_frame = self._preprocess_frame(self.state)
@@ -44,6 +46,10 @@ class BreakoutEnvironment(GameEnvironment):
         processed_frame = self._preprocess_frame(next_state)
         self.frame_stack.pop(0)
         self.frame_stack.append(processed_frame)
+
+        # Update info with frame numbers
+        info['episode_frame_number'] = info.get('episode_frame_number', 0) + 1
+        info['frame_number'] = info.get('frame_number', 0) + 1
 
         return (
             self._get_stacked_state(),
@@ -99,3 +105,42 @@ class BreakoutEnvironment(GameEnvironment):
     def get_action_space(self):
         """Get the action space size for MuZero."""
         return self.action_space.n
+
+    def get_ai_suggestion(self, state):
+        """Get AI suggestion for the current state."""
+        if state is None:
+            return 1  # FIRE to start the game
+
+        # Extract the most recent frame
+        current_frame = state[-1]  # Shape: (84, 84)
+
+        # Find paddle position (look at the bottom rows)
+        paddle_row = current_frame[-5:]  # Last 5 rows
+        paddle_col = np.argmax(np.mean(paddle_row, axis=0))
+
+        # Find ball position (look for bright pixels in the play area)
+        play_area = current_frame[10:-5]  # Exclude score area and paddle
+        ball_positions = np.where(play_area > 0.5)
+
+        if len(ball_positions[0]) > 0:
+            ball_y = np.mean(ball_positions[0])
+            ball_x = np.mean(ball_positions[1])
+
+            # Track ball movement
+            if self.ball_previous_y is not None:
+                ball_moving_down = ball_y > self.ball_previous_y
+            else:
+                ball_moving_down = True
+
+            self.ball_previous_y = ball_y
+
+            # Only move if ball is moving down and getting close
+            if ball_moving_down and ball_y > 40:  # Ball in lower half
+                if ball_x < paddle_col - 2:
+                    return 3  # LEFT
+                elif ball_x > paddle_col + 2:
+                    return 2  # RIGHT
+                return 0  # NOOP
+
+        # If we can't find the ball, make small movements
+        return np.random.choice([0, 2, 3])  # NOOP, RIGHT, LEFT
