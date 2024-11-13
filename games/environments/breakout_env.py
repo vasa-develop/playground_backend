@@ -29,7 +29,20 @@ class BreakoutEnvironment(GameEnvironment):
         for _ in range(self.frame_stack_size):
             self.frame_stack.append(processed_frame)
 
-        return self._get_stacked_state()
+        # Initialize info with required fields
+        info = {
+            'lives': int(self.lives),  # Convert to native Python int
+            'episode_frame_number': 0,
+            'frame_number': 0,
+            'score': 0
+        }
+
+        # Get stacked state and ensure it's serializable
+        stacked_state = self._get_stacked_state()
+        if isinstance(stacked_state, np.ndarray):
+            stacked_state = stacked_state.tolist()
+
+        return stacked_state, info
 
     def step(self, action):
         """Execute action and return next state, reward, done, info."""
@@ -47,14 +60,24 @@ class BreakoutEnvironment(GameEnvironment):
         self.frame_stack.pop(0)
         self.frame_stack.append(processed_frame)
 
-        # Update info with frame numbers
-        info['episode_frame_number'] = info.get('episode_frame_number', 0) + 1
-        info['frame_number'] = info.get('frame_number', 0) + 1
+        # Update info with frame numbers and ensure all values are native Python types
+        info = {
+            'lives': int(current_lives),
+            'episode_frame_number': int(info.get('episode_frame_number', 0) + 1),
+            'frame_number': int(info.get('frame_number', 0) + 1),
+            'score': int(info.get('score', 0)),
+            'termination_reason': 'life_lost' if life_lost else ('game_over' if terminated else None)
+        }
+
+        # Get stacked state and ensure it's serializable
+        stacked_state = self._get_stacked_state()
+        if isinstance(stacked_state, np.ndarray):
+            stacked_state = stacked_state.tolist()
 
         return (
-            self._get_stacked_state(),
+            stacked_state,
             float(reward),
-            done or life_lost,
+            bool(done or life_lost),
             info
         )
 
@@ -95,8 +118,9 @@ class BreakoutEnvironment(GameEnvironment):
         if not self.frame_stack:
             return None
 
-        # Stack frames along a new axis (channel dimension)
-        return np.stack(self.frame_stack, axis=0)
+        # Stack frames along a new axis (channel dimension) and convert to list
+        stacked = np.stack(self.frame_stack, axis=0)
+        return stacked.tolist()  # Convert numpy array to nested Python lists
 
     def get_observation_space(self):
         """Get the observation space for MuZero."""
